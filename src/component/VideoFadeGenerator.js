@@ -17,6 +17,7 @@ export default function VideoFadeGenerator() {
   // Load FFmpeg
   useEffect(() => {
     const loadFFmpeg = async () => {
+      const baseURL = '/ffmpeg';
       const ffmpegInstance = new FFmpeg();
       ffmpegInstance.on('progress', ({ progress }) => {
         setProgress(Math.round(progress * 100));
@@ -27,18 +28,23 @@ export default function VideoFadeGenerator() {
       });
       
       try {
-        // Base64-encoded FFmpeg files (shortened; replace with full base64 strings)
-        const coreJSBase64 = '/* Paste ffmpeg-core.js base64 string here */';
-        const wasmBase64 = '/* Paste ffmpeg-core.wasm base64 string here */';
+        console.log('Attempting to load FFmpeg core from:', `${baseURL}/ffmpeg-core.js`);
+        console.log('Attempting to load FFmpeg WASM from:', `${baseURL}/ffmpeg-core.wasm`);
         
-        // Convert base64 to blobs
-        const coreJSBlob = new Blob([Uint8Array.from(atob(coreJSBase64), c => c.charCodeAt(0))], { type: 'text/javascript' });
-        const wasmBlob = new Blob([Uint8Array.from(atob(wasmBase64), c => c.charCodeAt(0))], { type: 'application/wasm' });
-        
-        // Create blob URLs
-        const coreURL = URL.createObjectURL(coreJSBlob);
-        const wasmURL = URL.createObjectURL(wasmBlob);
-        console.log('Blob URLs created:', { coreURL, wasmURL });
+        // Custom fetch to avoid stream issues
+        const fetchBlobURL = async (url, type) => {
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+          }
+          const blob = await response.blob();
+          const blobURL = URL.createObjectURL(blob);
+          console.log(`Created blob URL for ${url}: ${blobURL}`);
+          return blobURL;
+        };
+
+        const coreURL = await fetchBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
+        const wasmURL = await fetchBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
 
         await ffmpegInstance.load({
           coreURL,
@@ -47,37 +53,10 @@ export default function VideoFadeGenerator() {
         setFFmpeg(ffmpegInstance);
         setLoaded(true);
         setError(null);
-        console.log('FFmpeg loaded successfully from embedded files');
+        console.log('FFmpeg loaded successfully from local files');
       } catch (error) {
-        console.error('Error loading FFmpeg from embedded files:', error);
-        // Fallback to local files
-        const baseURL = '/ffmpeg';
-        try {
-          console.log('Falling back to local:', baseURL);
-          const responseJS = await fetch(`${baseURL}/ffmpeg-core.js`);
-          if (!responseJS.ok) throw new Error(`HTTP error ${responseJS.status}`);
-          const coreJSBlob = await responseJS.blob();
-          const coreURL = URL.createObjectURL(coreJSBlob);
-
-          const responseWasm = await fetch(`${baseURL}/ffmpeg-core.wasm`);
-          if (!responseWasm.ok) throw new Error(`HTTP error ${responseWasm.status}`);
-          const wasmBlob = await responseWasm.blob();
-          const wasmURL = URL.createObjectURL(wasmBlob);
-
-          console.log('Local Blob URLs created:', { coreURL, wasmURL });
-
-          await ffmpegInstance.load({
-            coreURL,
-            wasmURL,
-          });
-          setFFmpeg(ffmpegInstance);
-          setLoaded(true);
-          setError(null);
-          console.log('FFmpeg loaded successfully from local files');
-        } catch (localError) {
-          console.error('Error loading FFmpeg from local:', localError);
-          setError(`Failed to load FFmpeg: ${localError.message || 'Unknown error'}. Ensure FFmpeg files are in public/ffmpeg.`);
-        }
+        console.error('Error loading FFmpeg:', error);
+        setError(`Failed to load FFmpeg: ${error.message || 'Unknown error'}. Ensure FFmpeg files are in public/ffmpeg.`);
       }
     };
     loadFFmpeg();
