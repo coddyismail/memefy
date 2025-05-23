@@ -7,7 +7,7 @@ const nextConfig = {
         headers: [
           { key: 'Content-Type', value: 'text/javascript' },
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-          { key: 'Access-Control-Allow-Origin', value: '*' }, // Allow CORS for static files
+          { key: 'Access-Control-Allow-Origin', value: '*' },
         ],
       },
       {
@@ -15,7 +15,7 @@ const nextConfig = {
         headers: [
           { key: 'Content-Type', value: 'application/wasm' },
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-          { key: 'Access-Control-Allow-Origin', value: '*' }, // Allow CORS
+          { key: 'Access-Control-Allow-Origin', value: '*' },
         ],
       },
     ];
