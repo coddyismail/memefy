@@ -1,7 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile } from '@ffmpeg/util';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import './VideoFadeGenerator.module.css';
 
 export default function VideoFadeGenerator() {
@@ -16,52 +16,40 @@ export default function VideoFadeGenerator() {
 
   // Load FFmpeg
   useEffect(() => {
-    const loadFFmpeg = async () => {
-      const baseURL = '/ffmpeg';
-      const ffmpegInstance = new FFmpeg();
-      ffmpegInstance.on('progress', ({ progress }) => {
-        setProgress(Math.round(progress * 100));
-        console.log('FFmpeg Progress:', progress);
-      });
-      ffmpegInstance.on('log', ({ message }) => {
-        console.log('FFmpeg Log:', message);
-      });
+  const loadFFmpeg = async () => {
+    const baseURL = '/ffmpeg';
+    const ffmpegInstance = new FFmpeg();
+    ffmpegInstance.on('progress', ({ progress }) => {
+      setProgress(Math.round(progress * 100));
+      console.log('FFmpeg Progress:', progress);
+    });
+    ffmpegInstance.on('log', ({ message }) => {
+      console.log('FFmpeg Log:', message);
+    });
+    
+    try {
+      console.log('Attempting to load FFmpeg core from:', `${baseURL}/ffmpeg-core.js`);
+      console.log('Attempting to load FFmpeg WASM from:', `${baseURL}/ffmpeg-core.wasm`);
       
-      try {
-        console.log('Attempting to load FFmpeg core from:', `${baseURL}/ffmpeg-core.js`);
-        console.log('Attempting to load FFmpeg WASM from:', `${baseURL}/ffmpeg-core.wasm`);
-        
-        // Custom fetch to avoid stream issues
-        const fetchBlobURL = async (url, type) => {
-          const response = await fetch(url);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
-          }
-          const blob = await response.blob();
-          const blobURL = URL.createObjectURL(blob);
-          console.log(`Created blob URL for ${url}: ${blobURL}`);
-          return blobURL;
-        };
+      const coreURL = `${baseURL}/ffmpeg-core.js`;
+      const wasmURL = `${baseURL}/ffmpeg-core.wasm`;
 
-        const coreURL = await fetchBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
-        const wasmURL = await fetchBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
-
-        await ffmpegInstance.load({
-          coreURL,
-          wasmURL,
-        });
-        setFFmpeg(ffmpegInstance);
-        setLoaded(true);
-        setError(null);
-        console.log('FFmpeg loaded successfully from local files');
-      } catch (error) {
-        console.error('Error loading FFmpeg:', error);
-        setError(`Failed to load FFmpeg: ${error.message || 'Unknown error'}. Ensure FFmpeg files are in public/ffmpeg.`);
-      }
-    };
-    loadFFmpeg();
-  }, []);
-
+      console.log('About to load FFmpeg with coreURL:', coreURL, 'wasmURL:', wasmURL);
+      await ffmpegInstance.load({
+        coreURL,
+        wasmURL,
+      });
+      setFFmpeg(ffmpegInstance);
+      setLoaded(true);
+      setError(null);
+      console.log('FFmpeg loaded successfully from local files');
+    } catch (error) {
+      console.error('Error loading FFmpeg:', error);
+      setError(`Failed to load FFmpeg: ${error.message || 'Unknown error'}. Ensure FFmpeg files are in public/ffmpeg.`);
+    }
+  };
+  loadFFmpeg();
+}, []);
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) {
