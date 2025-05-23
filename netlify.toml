@@ -1,0 +1,21 @@
+# Netlify configuration for http://fadevideo.netlify.app
+[[headers]]
+  for = "/ffmpeg/ffmpeg-core.js"
+  [headers.values]
+    Content-Type = "text/javascript"
+    Cache-Control = "public, max-age=31536000, immutable"
+    Access-Control-Allow-Origin = "*"
+
+[[headers]]
+  for = "/ffmpeg/ffmpeg-core.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+    Cache-Control = "public, max-age=31536000, immutable"
+    Access-Control-Allow-Origin = "*"
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "18"
