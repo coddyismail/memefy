@@ -1,8 +1,25 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import { fetchFile } from '@ffmpeg/util';
 import './VideoFadeGenerator.module.css';
+
+// Custom toBlobURL to avoid response stream issues
+async function customToBlobURL(url, type) {
+  try {
+    console.log(`Fetching ${url}`);
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    const blobURL = URL.createObjectURL(blob);
+    console.log(`Created blob URL for ${url}: ${blobURL}`);
+    return blobURL;
+  } catch (error) {
+    throw new Error(`Failed to fetch ${url}: ${error.message}`);
+  }
+}
 
 export default function VideoFadeGenerator() {
   const [ffmpeg, setFFmpeg] = useState(null);
@@ -31,8 +48,8 @@ export default function VideoFadeGenerator() {
         console.log('Attempting to load FFmpeg core from:', `${baseURL}/ffmpeg-core.js`);
         console.log('Attempting to load FFmpeg WASM from:', `${baseURL}/ffmpeg-core.wasm`);
         
-        const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript', true);
-        const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm', true);
+        const coreURL = await customToBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
+        const wasmURL = await customToBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
         console.log('CDN Blob URLs created:', { coreURL, wasmURL });
 
         await ffmpegInstance.load({
@@ -45,13 +62,13 @@ export default function VideoFadeGenerator() {
         console.log('FFmpeg loaded successfully from CDN (@0.12.10)');
       } catch (error) {
         console.error('Error loading FFmpeg from CDN (@0.12.10):', error);
-        // Try alternative CDN
-        baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist';
+        // Try local files
+        baseURL = '/ffmpeg';
         try {
-          console.log('Falling back to alternative CDN:', baseURL);
-          const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript', true);
-          const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm', true);
-          console.log('Alternative CDN Blob URLs created:', { coreURL, wasmURL });
+          console.log('Falling back to local:', baseURL);
+          const coreURL = await customToBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
+          const wasmURL = await customToBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
+          console.log('Local Blob URLs created:', { coreURL, wasmURL });
 
           await ffmpegInstance.load({
             coreURL,
@@ -60,29 +77,10 @@ export default function VideoFadeGenerator() {
           setFFmpeg(ffmpegInstance);
           setLoaded(true);
           setError(null);
-          console.log('FFmpeg loaded successfully from alternative CDN (@0.12.6)');
-        } catch (altCdnError) {
-          console.error('Error loading FFmpeg from alternative CDN (@0.12.6):', altCdnError);
-          // Try local files
-          baseURL = '/ffmpeg';
-          try {
-            console.log('Falling back to local:', baseURL);
-            const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript', true);
-            const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm', true);
-            console.log('Local Blob URLs created:', { coreURL, wasmURL });
-
-            await ffmpegInstance.load({
-              coreURL,
-              wasmURL,
-            });
-            setFFmpeg(ffmpegInstance);
-            setLoaded(true);
-            setError(null);
-            console.log('FFmpeg loaded successfully from local files');
-          } catch (localError) {
-            console.error('Error loading FFmpeg from local:', localError);
-            setError(`Failed to load FFmpeg: ${localError.message || 'Unknown error'}. Ensure FFmpeg files are in public/ffmpeg and check your network.`);
-          }
+          console.log('FFmpeg loaded successfully from local files');
+        } catch (localError) {
+          console.error('Error loading FFmpeg from local:', localError);
+          setError(`Failed to load FFmpeg: ${localError.message || 'Unknown error'}. Ensure FFmpeg files are in public/ffmpeg and check your network.`);
         }
       }
     };
